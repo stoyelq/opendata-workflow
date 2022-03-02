@@ -1,3 +1,8 @@
+# 
+venv/
+temp/*
+*.Rproj
+.idea/*
 # History files
 .Rhistory
 .Rapp.history

@@ -1,0 +1,117 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
+
+Import libraries:
+
+```{r warning=FALSE}
+library(here) # avoid absolute paths
+library(reticulate) # allows us to use python
+reticulate::use_virtualenv(here::here("venv"))
+
+install.packages("ckanr") #you need to install the packages every time since it is a fresh container
+library(ckanr)
+ckanr_setup(url="https://open.canada.ca/data")
+
+library(sf) # r geospatial library
+library(httr) # http request library
+
+library(dplyr)
+library(ggplot2)
+
+world <- map_data("world")
+worldMap <- ggplot() + geom_map(data = world,
+                                map = world, aes(long, lat, map_id = region)) 
+
+
+
+```
+
+## MapServer Open Data records:
+Example Open data source: https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441
+Example resource: https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441/resource/3af8ad03-c0da-4cfa-940d-d757c0c24cb7
+
+```{r}
+pkgId <- "8fafd919-fcbe-43a3-a911-3d9461273441"
+pkg <- ckanr::package_show(pkgId)
+paste("Get tile of open data package:", pkg$title)
+
+resId <- "3af8ad03-c0da-4cfa-940d-d757c0c24cb7"
+res <- resource_show(resId)
+paste("Url for the resource:", res$url)
+```
+
+Download and unzip the resource:
+```{r}
+# set paths:
+tempDir <- here::here("temp") 
+temp <- file.path(tempDir, "temp.zip")
+
+# empty temp directory
+tempFiles <- list.files(tempDir, include.dirs = T, full.names = T, recursive = T)
+unlink(tempFiles, recursive = TRUE)
+
+download.file(res$url, temp)
+utils::unzip(temp, exdir = tempDir)
+```
+Locate the shapefile path and read it:
+```{r}
+shpFile <- list.files(tempDir, recursive=TRUE, pattern="\\.shp$", full.names = TRUE)
+data_sf <- sf::st_read(shpFile, stringsAsFactors = FALSE)
+data_sf <- sf::st_transform(data_sf, crs=4326) %>% sf::st_make_valid()
+```
+
+```{r}
+bbox <- sf::st_bbox(data_sf)
+worldMap +
+  geom_sf(data=dplyr::select(data_sf, "season"), 
+          aes(fill = factor(data_sf$season))) +
+  coord_sf(xlim = c(bbox$xmin, bbox$xmax),
+           ylim = c(bbox$ymin, bbox$ymax), 
+           expand = FALSE)
+```
+Save our data to a shapefile:
+
+```{r}
+sf::st_write(data_sf, here::here("temp/blueWhale.shp"), delete_dsn=TRUE)
+```
+
+Function based approach:
+```{r}
+download_extract_validate_sf <- function(zipUrl, gdbLayer = NULL) {
+  # set paths:
+  tempDir <- here::here("temp")
+  temp <- file.path(tempDir, "temp.zip")
+  
+  download.file(zipUrl, temp)
+  utils::unzip(temp, exdir = tempDir)
+  # if there's a shape file read that:
+  shpFile <- list.files(tempDir, recursive=TRUE, pattern="\\.shp$", full.names = TRUE)
+  gdbDir <- list.files(tempDir, recursive=TRUE, pattern="\\.gdb$",
+                       include.dirs = TRUE, full.names = TRUE)
+  if (length(shpFile) > 0) {
+    out_sf <- st_read(shpFile, stringsAsFactors = FALSE)
+  } else if (length(gdbDir) > 0) {
+    out_sf <- st_read(gdbDir, stringsAsFactors = FALSE, layer = gdbLayer)
+    out_sf$geometry <- st_geometry(out_sf)
+  }
+  
+  out_sf <- st_make_valid(out_sf)
+  out_sf <- st_transform(out_sf, crs = 4326)
+  
+  # cleanup
+  tempFiles <- list.files(tempDir, include.dirs = T, full.names = T, recursive = T)
+  unlink(tempFiles, recursive = TRUE)
+  
+  return(out_sf)
+}
+
+resId <- "3af8ad03-c0da-4cfa-940d-d757c0c24cb7"
+res <- resource_show(resId)
+data_sf <- download_extract_validate_sf(res$url)
+```
