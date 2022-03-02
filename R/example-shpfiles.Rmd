@@ -11,8 +11,6 @@ Import libraries:
 
 ```{r warning=FALSE}
 library(here) # avoid absolute paths
-library(reticulate) # allows us to use python
-reticulate::use_virtualenv(here::here("venv"))
 
 install.packages("ckanr") #you need to install the packages every time since it is a fresh container
 library(ckanr)

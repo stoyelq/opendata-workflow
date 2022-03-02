@@ -40,10 +40,3 @@ download_extract_validate_sf <- function(zipUrl, gdbLayer = NULL) {
   
   return(out_sf)
 }
-
-# example:
-# the Resource id is the last part of the resource link: https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441/resource/3af8ad03-c0da-4cfa-940d-d757c0c24cb7
-# the resource id is NOT static, it changes when the resource is updated. The package id is constant though.
-resId <- "3af8ad03-c0da-4cfa-940d-d757c0c24cb7"
-res <- resource_show(resId)
-data_sf <- download_extract_validate_sf(res$url)

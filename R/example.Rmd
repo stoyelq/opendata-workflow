@@ -11,8 +11,6 @@ Import libraries:
 
 ```{r warning=FALSE}
 library(here) # avoid absolute paths
-library(reticulate) # allows us to use python
-reticulate::use_virtualenv(here::here("venv"))
 
 library(sf) # r geospatial library
 library(httr) # http request library
@@ -20,23 +18,25 @@ library(httr) # http request library
 library(dplyr)
 library(ggplot2)
 
-world <- map_data("world")
+world <- map_data("world") # map of world borders
 worldMap <- ggplot() + geom_map(data = world,
                                 map = world, aes(long, lat, map_id = region)) 
 
 ```
 
 ## MapServer Open Data records:
-Example Open data source: https://open.canada.ca/data/en/dataset/da99526e-284f-4e06-8d04-193785cd1a96
-Map server url: https://maps-cartes.ec.gc.ca/arcgis/rest/services/Active_Inactive_Disposal_at_Sea_Sites/MapServer
+
+Example Open Data record: <https://open.canada.ca/data/en/dataset/da99526e-284f-4e06-8d04-193785cd1a96>
+
+Associated Map server url: <https://maps-cartes.ec.gc.ca/arcgis/rest/services/Active_Inactive_Disposal_at_Sea_Sites/MapServer>
 
 ```{r}
-# set up 
 mapServerUrl <- "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Active_Inactive_Disposal_at_Sea_Sites/MapServer"
 layer = "0"
 ```
 
 Build an http request:
+
 ```{r}
 url <- httr::parse_url(mapServerUrl)
 url$path <- paste(url$path, layer, "query", sep = "/")
@@ -47,15 +47,17 @@ url$query <- list(where = "OBJECTID>0", # filter results, default is to select a
                   f = "geojson") # return the results as a geojson
 
 requestUrl <- httr::build_url(url)
-requestUrl
+paste(requestUrl)
 ```
-Read in the geojson into an sf object
-```{r}
-# you can enter the request object into a browser to access the raw geojson returned from the query
-data_sf <- sf::st_read(requestUrl) %>% sf::st_make_valid()
-head(data_sf)
 
+Read in the geojson into an sf object
+
+```{r}
+data_sf <- sf::st_read(requestUrl) %>% sf::st_make_valid()
+names(data_sf)
 ```
+
+Perform basic filtering and plot the data
 
 ```{r}
 atlantic_sf <- dplyr::filter(data_sf, Region == "Atlantic")
@@ -70,13 +72,15 @@ worldMap +
            ylim = c(bbox$ymin, bbox$ymax), 
            expand = FALSE)
 ```
+
 Save our data to a shapefile:
 
 ```{r}
 sf::st_write(atlantic_sf, here::here("temp/atlantic.shp"), delete_dsn=TRUE)
 ```
 
-Function based approach:
+Function based approach for loading the data:
+
 ```{r}
 get_esri_rest <- function(mapServerUrl, layer="1", where="OBJECTID>0") {
   url <- httr::parse_url(mapServerUrl)
@@ -96,15 +100,24 @@ data_sf <- get_esri_rest(url, layer="0")
 data_sf <- get_esri_rest(url, layer="0", where="SiteCode = 'CA-AT-D004'")
 ```
 
+## Python version
 
+We can run the same code in python as well:
 
+```{r}
+library(reticulate) # allows us to use python
+reticulate::use_virtualenv(here::here("venv"))
+```
 
 ```{python}
 import requests
 import json
-from shapely.geometry import shape, GeometryCollection
-import geopandas as gpd
+from shapely.geometry import shape
+import pandas as pd
+```
 
+Similar url building as in R:
+```{python}
 
 base_url = "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Active_Inactive_Disposal_at_Sea_Sites/MapServer"
 layer = "0"
@@ -112,13 +125,20 @@ layer = "0"
 url = base_url + "/" + layer + "/query"
 query_params = {"where":"OBJECTID>0", "outFields" : "*", "returnGeometry" : "true", "f" : "geojson"}
 response_object = requests.get(url, params=query_params)
+print(response_object.url)
 ```
-Load the response into a shapely object:
+
+Load the response into a pandas dataframe object with shapely geometries:
 
 ```{python}
 if response_object.ok:
-  features = response_object.json()["features"]
-  data_df = gpd.GeoDataFrame.from_features(features)
-  shapely_coll = GeometryCollection([shape(feature["geometry"]).buffer(0) for feature in features])
+  
+  data = response_object.json()["features"]
+  parsed_data = [[feature['properties']['Region'],
+                shape(feature["geometry"])] for feature in data]
+                
+  pd.DataFrame(data=parsed_data, columns=['Region', 'geometry'])
+  
+  
 
 ```
