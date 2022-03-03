@@ -31,8 +31,8 @@ worldMap <- ggplot() + geom_map(data = world,
 ```
 
 ## MapServer Open Data records:
-Example Open data source: https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441
-Example resource: https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441/resource/3af8ad03-c0da-4cfa-940d-d757c0c24cb7
+
+Example Open data source: <https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441> Example resource: <https://open.canada.ca/data/en/dataset/8fafd919-fcbe-43a3-a911-3d9461273441/resource/3af8ad03-c0da-4cfa-940d-d757c0c24cb7>
 
 ```{r}
 pkgId <- "8fafd919-fcbe-43a3-a911-3d9461273441"
@@ -45,6 +45,7 @@ paste("Url for the resource:", res$url)
 ```
 
 Download and unzip the resource:
+
 ```{r}
 # set paths:
 tempDir <- here::here("temp") 
@@ -57,7 +58,9 @@ unlink(tempFiles, recursive = TRUE)
 download.file(res$url, temp)
 utils::unzip(temp, exdir = tempDir)
 ```
+
 Locate the shapefile path and read it:
+
 ```{r}
 shpFile <- list.files(tempDir, recursive=TRUE, pattern="\\.shp$", full.names = TRUE)
 data_sf <- sf::st_read(shpFile, stringsAsFactors = FALSE)
@@ -73,6 +76,7 @@ worldMap +
            ylim = c(bbox$ymin, bbox$ymax), 
            expand = FALSE)
 ```
+
 Save our data to a shapefile:
 
 ```{r}
@@ -80,6 +84,7 @@ sf::st_write(data_sf, here::here("temp/blueWhale.shp"), delete_dsn=TRUE)
 ```
 
 Function based approach:
+
 ```{r}
 download_extract_validate_sf <- function(zipUrl, gdbLayer = NULL) {
   # set paths:

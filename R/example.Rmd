@@ -2,7 +2,7 @@
 title: "R Notebook"
 output: html_notebook
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code.
@@ -24,7 +24,7 @@ worldMap <- ggplot() + geom_map(data = world,
 
 ```
 
-## MapServer Open Data records:
+## Map Server Open Data records:
 
 Example Open Data record: <https://open.canada.ca/data/en/dataset/da99526e-284f-4e06-8d04-193785cd1a96>
 
@@ -76,7 +76,7 @@ worldMap +
 Save our data to a shapefile:
 
 ```{r}
-sf::st_write(atlantic_sf, here::here("temp/atlantic.shp"), delete_dsn=TRUE)
+sf::st_write(atlantic_sf, here::here("temp/atlantic.geojson"), delete_dsn=TRUE)
 ```
 
 Function based approach for loading the data:
@@ -117,6 +117,7 @@ import pandas as pd
 ```
 
 Similar url building as in R:
+
 ```{python}
 
 base_url = "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Active_Inactive_Disposal_at_Sea_Sites/MapServer"
